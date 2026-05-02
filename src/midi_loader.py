@@ -70,7 +70,7 @@ class MIDILoader:
                             played_notes = self.extract_played_notes(midi=midi)  
                                     
                             info = {
-                                'Paticipant_ID': participant_id,
+                                'Participant_ID': participant_id,
                                 'Test': test,
                                 'Notes': played_notes,
                             }
