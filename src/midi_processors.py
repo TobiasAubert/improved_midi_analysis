@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 class FingerdexProcessor:
-    def analyse_fingertest(self, data):
+    def process_fingerdata(self, data):
         """
         Process fingertest data.
 
@@ -50,7 +50,7 @@ class FingerdexProcessor:
         return processed_data
     
 class StatesProcessor:
-    def analyse_states(self, data):
+    def process_statedata(self, data):
         processed_data = []
         for entry in data:     
             # 1. Bestimme die Ziel-Sequenz basierend auf dem Test-Namen

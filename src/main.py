@@ -4,6 +4,8 @@ from pathlib import Path
 import pandas as pd
 from midi_processors import FingerdexProcessor, StatesProcessor
 from data_analyser import FingerDataAnalyser
+import matplotlib.pyplot as plt
+from data_plotter import FingerDataPlotter
 
 
 """locate data folder with the midi recordings"""
@@ -18,19 +20,18 @@ data_fingertest, data_states = loader.load_midi(root_folder=root_folder)
 
 """process the data fingertest"""
 finger_processor = FingerdexProcessor()
-processed_data_fingertest = finger_processor.analyse_fingertest(data_fingertest)
+processed_data_fingertest = finger_processor.process_fingerdata(data_fingertest)
 
 
 """procces the data with states"""
 state_processor = StatesProcessor()
-df_states = pd.DataFrame(state_processor.analyse_states(data_states))
+df_states = pd.DataFrame(state_processor.process_statedata(data_states))
 df_states['detected_states'] = df_states['detected_states'].apply(state_processor.remove_duplicate_states)
 df_states = state_processor.calculate_transitions(df_states) #is also added to the current df
 
 
-"""statistics"""
-fda = FingerDataAnalyser()
-df_fingertest = pd.DataFrame(data_fingertest)
-fda.anova_test(df_fingertest)
+"""Plotting"""
+dp = FingerDataPlotter()
+dp.boxplot(pd.DataFrame(processed_data_fingertest))
 
 # df_states.to_csv('safe_check_order.csv', index=False, encoding='utf-8-sig')
