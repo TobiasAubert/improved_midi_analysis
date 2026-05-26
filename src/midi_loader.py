@@ -15,7 +15,7 @@ class MIDILoader:
     def extract_midi_info(self, filename):
         # Extract participant ID, test_name
         participant_id = filename.split('_')[0]
-        test = filename.split('_')[1].split('.')[0]
+        test = filename.split('_')[1].split('.')[0] #A, B1, POST, PRE / FT1
         return(participant_id,test)
 
     def extract_played_notes(self, midi, exclude_drums=True):
@@ -71,7 +71,7 @@ class MIDILoader:
                                     
                             info = {
                                 'Participant_ID': participant_id,
-                                'Test': test,
+                                'Test': test, 
                                 'Notes': played_notes,
                             }
                             data_states.append(info)

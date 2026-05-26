@@ -146,11 +146,9 @@ class StatesProcessor:
 
                 if found_state_ranges:
                     header = "   🔎 Gefundene States (Index-Bereiche):"
-                    # print(header)
                     mismatch_output_lines.append(header)
                     for entry in found_state_ranges:
                         line = f"   - {entry}"
-                        # print(line)
                         mismatch_output_lines.append(line)
 
             # Calculate last found pitch and index for DataFrame
@@ -209,6 +207,8 @@ class StatesProcessor:
         """
         if not isinstance(states_df, pd.DataFrame):
             raise TypeError("calculate_transitions expects a pandas DataFrame")
+        
+        out_df = states_df.copy()
 
         transitions_per_row = []
         for _, row in states_df.iterrows():
@@ -242,6 +242,6 @@ class StatesProcessor:
 
             transitions_per_row.append(row_transitions)
 
-        out_df = states_df.copy()
+        
         out_df['transitions'] = transitions_per_row
         return out_df

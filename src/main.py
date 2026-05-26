@@ -5,7 +5,7 @@ import pandas as pd
 from midi_processors import FingerdexProcessor, StatesProcessor
 from data_analyser import FingerDataAnalyser
 import matplotlib.pyplot as plt
-from data_plotter import FingerDataPlotter
+from data_plotter import FingerDataPlotter, StateDataPlotter
 
 
 """locate data folder with the midi recordings"""
@@ -31,7 +31,10 @@ df_states = state_processor.calculate_transitions(df_states) #is also added to t
 
 
 """Plotting"""
-dp = FingerDataPlotter()
-dp.boxplot(pd.DataFrame(processed_data_fingertest))
+# dp = FingerDataPlotter()
+# dp.boxplot(pd.DataFrame(processed_data_fingertest))
+
+pl = StateDataPlotter()
+pl.learning_curve(df_states)
 
 # df_states.to_csv('safe_check_order.csv', index=False, encoding='utf-8-sig')
