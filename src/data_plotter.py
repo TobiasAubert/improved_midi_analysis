@@ -174,6 +174,124 @@ class StateDataPlotter():
         plt.tight_layout()
         plt.show()
 
+    def pre_post_boxplot(self, df: pd.DataFrame) -> None:
+
+        # Farbzuordnung konsistent mit learning_curve_new.py
+        FREQ_PALETTE = {
+            'h': '#ff7f0e',  # frequent
+            's': '#2ca02c',  # rare
+        }
+        FREQ_ORDER = ['h', 's']
 
 
+        df = df.copy()
+
+        df_pre_post = df[df['Test'].str.contains('pre|post', case=False, na=False)].copy()
+        exploded = df_pre_post.explode('transitions')
+        exploded['freq'] = exploded['transitions'].apply(
+            lambda item: item.get('frequency') if isinstance(item, dict) else np.nan
+        )
+        exploded['onset_to_onset'] = exploded['transitions'].apply(
+            lambda item: item.get('onset_to_onset') if isinstance(item, dict) else np.nan
+        )
+
+        # Metriken zum Plotten
+        metrics = ['onset_to_onset']
+        metric_labels = ['Transition time']
+        
+        
+        fig, ax = plt.subplots(figsize=(6, 4))
+        
+        for i, (metric, label) in enumerate(zip(metrics, metric_labels)):
+            sns.boxplot(
+                data=exploded,
+                x='Test',
+                y=metric,
+                hue='freq',
+                ax=ax,
+                palette=FREQ_PALETTE,
+                hue_order=FREQ_ORDER
+            )
+            sns.stripplot(
+                data=exploded,
+                x='Test',
+                y=metric,
+                hue='freq',
+                color='black',
+                size=2,
+                alpha=0.4,
+                jitter=True,
+                ax=ax,
+                dodge=True,
+                legend=False
+            )
+            
+            ax.set_title(f'{label}', fontsize=14, fontweight='bold')
+            ax.set_xlabel('Test', fontsize=12)
+            ax.set_ylabel('Time (s)', fontsize=12)
+            ax.tick_params(axis='y', labelsize=10)
+            ax.legend(title='Frequency', loc='upper right')
+        
+        plt.tight_layout()
+        plt.show()
+
+    def pre_post_violin(self, df: pd.DataFrame) -> None:
+        # Farbzuordnung konsistent mit learning_curve_new.py
+        FREQ_PALETTE = {
+            'h': '#ff7f0e',  # frequent
+            's': '#2ca02c',  # rare
+        }
+        FREQ_ORDER = ['h', 's']
+
+
+        df = df.copy()
+
+        df_pre_post = df[df['Test'].str.contains('pre|post', case=False, na=False)].copy()
+        exploded = df_pre_post.explode('transitions')
+        exploded['freq'] = exploded['transitions'].apply(
+            lambda item: item.get('frequency') if isinstance(item, dict) else np.nan
+        )
+        exploded['onset_to_onset'] = exploded['transitions'].apply(
+            lambda item: item.get('onset_to_onset') if isinstance(item, dict) else np.nan
+        )
+
+        # Metriken zum Plotten
+        metrics = ['onset_to_onset']
+        metric_labels = ['Transition time']
+        
+        
+        fig, ax = plt.subplots(figsize=(6, 4))
+        
+        for i, (metric, label) in enumerate(zip(metrics, metric_labels)):
+            sns.violinplot(
+                data=exploded,
+                x='Test',
+                y=metric,
+                hue='freq',
+                ax=ax,
+                palette=FREQ_PALETTE,
+                hue_order=FREQ_ORDER
+            )
+            sns.stripplot(
+                data=exploded,
+                x='Test',
+                y=metric,
+                hue='freq',
+                color='black',
+                size=2,
+                alpha=0.4,
+                jitter=True,
+                ax=ax,
+                dodge=True,
+                legend=False
+            )
+            
+            ax.set_title(f'{label} (Violin Plot)', fontsize=14, fontweight='bold')
+            ax.set_xlabel('Test', fontsize=12)
+            ax.set_ylabel('Time (s)', fontsize=12)
+            ax.tick_params(axis='y', labelsize=10)
+            ax.legend(title='Frequency', loc='upper right')
+        
+        plt.tight_layout()
+        plt.show()
 
