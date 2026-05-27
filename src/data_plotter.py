@@ -77,6 +77,16 @@ class StateDataPlotter:
         plt.gcf().savefig(self.output_dir / filename, dpi=200, bbox_inches="tight")
 
     def learning_curve(self, df: pd.DataFrame) -> None:
+        participant_means = self._prepare_learning_curve_data(df)
+        if participant_means.empty:
+            print("No block tests (B1-B8) with transitions available for plotting.")
+            return
+
+        group_means, block_order = self._summarize_learning_curve(participant_means)
+        self._plot_learning_curve(participant_means, group_means, block_order)
+
+    def _prepare_learning_curve_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Return per-participant block means for B1-B8 only."""
         df = df.copy()
 
         # Ensure transitions are list-like before exploding.
@@ -86,27 +96,24 @@ class StateDataPlotter:
 
         exploded = df.explode("transitions")
         exploded["onset_to_onset"] = exploded["transitions"].apply(
-            lambda item: (
-                item.get("onset_to_onset") if isinstance(item, dict) else np.nan
-            )
+            lambda item: item.get("onset_to_onset") if isinstance(item, dict) else np.nan
         )
         exploded["frequency"] = exploded["transitions"].apply(
             lambda item: item.get("frequency") if isinstance(item, dict) else np.nan
         )
+
+        # Keep only tests relevant for learning curves (B1-B8).
+        exploded["block"] = exploded["Test"].astype(str).str.lower().str.strip()
+        exploded = exploded[exploded["block"].str.fullmatch(r"b[1-8]")]
+        if exploded.empty:
+            return exploded
+
         exploded["onset_h"] = exploded["onset_to_onset"].where(
             exploded["frequency"].eq("h")
         )
         exploded["onset_s"] = exploded["onset_to_onset"].where(
             exploded["frequency"].eq("s")
         )
-
-        # Keep only tests relevant for learning curves (B1-B8).
-        exploded["block"] = exploded["Test"].astype(str).str.lower().str.strip()
-        exploded = exploded[exploded["block"].str.fullmatch(r"b[1-8]")]
-
-        if exploded.empty:
-            print("No block tests (B1-B8) with transitions available for plotting.")
-            return
 
         participant_means = exploded.groupby(
             ["Participant_ID", "block"], as_index=False
@@ -122,7 +129,13 @@ class StateDataPlotter:
             categories=block_order,
             ordered=True,
         )
-        participant_means = participant_means.sort_values(["Participant_ID", "block"])
+        return participant_means.sort_values(["Participant_ID", "block"])
+
+    def _summarize_learning_curve(
+        self, participant_means: pd.DataFrame
+    ) -> tuple[pd.DataFrame, list[str]]:
+        """Aggregate participant means into block means with 95% CIs."""
+        block_order = [f"b{i}" for i in range(1, 9)]
 
         def summarize_with_ci(
             df_in: pd.DataFrame, value_col: str, out_prefix: str
@@ -148,16 +161,24 @@ class StateDataPlotter:
             .merge(group_s, on="block", how="outer")
             .sort_values("block")
         )
+        return group_means, block_order
 
-        plt.figure(figsize=(12, 6))
+    def _plot_learning_curve(
+        self,
+        participant_means: pd.DataFrame,
+        group_means: pd.DataFrame,
+        block_order: list[str],
+    ) -> None:
+        """Render and save the learning-curve plot."""
+        fig, ax = plt.subplots(figsize=(12, 6))
         participant_colors = plt.cm.tab20(
             np.linspace(0, 1, max(1, participant_means["Participant_ID"].nunique()))
         )
 
-        for idx, (participant, one_participant) in enumerate(
+        for idx, (_, one_participant) in enumerate(
             participant_means.groupby("Participant_ID")
         ):
-            plt.plot(
+            ax.plot(
                 one_participant["block"].cat.codes,
                 one_participant["mean_onset_total"],
                 linewidth=0.8,
@@ -166,51 +187,33 @@ class StateDataPlotter:
                 zorder=2,
             )
 
-        plt.errorbar(
-            group_means["block"].cat.codes,
-            group_means["total_mean"],
-            yerr=group_means["total_ci95"],
-            color="black",
-            linewidth=2.5,
-            marker="o",
-            label="Group mean (total)",
-            capsize=5,
-            elinewidth=1.5,
-            zorder=3,
-        )
+        series = [
+            ("total_mean", "total_ci95", "black", "Group mean (total)", 2.5, 1.5),
+            ("h_mean", "h_ci95", "tab:blue", "Group mean (h)", 2.0, 1.3),
+            ("s_mean", "s_ci95", "tab:orange", "Group mean (s)", 2.0, 1.3),
+        ]
+        
+        for y_col, err_col, color, label, linewidth, elinewidth in series:
+            ax.errorbar(
+                group_means["block"].cat.codes,
+                group_means[y_col],
+                yerr=group_means[err_col],
+                color=color,
+                linewidth=linewidth,
+                marker="o",
+                label=label,
+                capsize=5,
+                elinewidth=elinewidth,
+                zorder=3,
+            )
 
-        plt.errorbar(
-            group_means["block"].cat.codes,
-            group_means["h_mean"],
-            yerr=group_means["h_ci95"],
-            color="tab:blue",
-            linewidth=2.0,
-            marker="o",
-            label="Group mean (h)",
-            capsize=5,
-            elinewidth=1.3,
-            zorder=3,
-        )
-
-        plt.errorbar(
-            group_means["block"].cat.codes,
-            group_means["s_mean"],
-            yerr=group_means["s_ci95"],
-            color="tab:orange",
-            linewidth=2.0,
-            marker="o",
-            label="Group mean (s)",
-            capsize=5,
-            elinewidth=1.3,
-            zorder=3,
-        )
-
-        plt.xticks(range(len(block_order)), [b.upper() for b in block_order])
-        plt.xlabel("Block")
-        plt.ylabel("Mean onset-to-onset (s)")
-        plt.title("Learning Curve (B1-B8)")
-        plt.grid(axis="y", alpha=0.2)
-        plt.legend()
+        ax.set_xticks(range(len(block_order)))
+        ax.set_xticklabels([b.upper() for b in block_order])
+        ax.set_xlabel("Block")
+        ax.set_ylabel("Mean onset-to-onset (s)")
+        ax.set_title("Learning Curve (B1-B8)")
+        ax.grid(axis="y", alpha=0.2)
+        ax.legend()
         plt.tight_layout()
         self._save_figure("learning_curve.png")
 
