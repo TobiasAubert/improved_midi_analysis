@@ -8,13 +8,15 @@ from scipy.stats import ttest_ind
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import seaborn as sns
-import matplotlib.pyplot as plt  
+import matplotlib.pyplot as plt
 import math
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
-import re 
+import re
 
-class FingerDataAnalyser():
+
+class FingerDataAnalyser:
     pass
 
-class StateDataAnalyser():
+
+class StateDataAnalyser:
     pass

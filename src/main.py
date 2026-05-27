@@ -1,4 +1,3 @@
-
 from midi_loader import MIDILoader
 from pathlib import Path
 import pandas as pd
@@ -6,7 +5,6 @@ from midi_processors import FingerdexProcessor, StatesProcessor
 from data_analyser import FingerDataAnalyser
 import matplotlib.pyplot as plt
 from data_plotter import FingerDataPlotter, StateDataPlotter
-
 
 """locate data folder with the midi recordings"""
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -25,9 +23,10 @@ processed_data_fingertest = finger_processor.process_fingerdata(data_fingertest)
 
 """procces the data with states"""
 state_processor = StatesProcessor()
-df_states = pd.DataFrame(state_processor.process_statedata(data_states))
-df_states['detected_states'] = df_states['detected_states'].apply(state_processor.remove_duplicate_states)
-df_states = state_processor.calculate_transitions(df_states) #is also added to the current df
+df_states = state_processor.process_statedata(data_states)
+df_states = state_processor.calculate_transitions(
+    df_states
+)  # is also added to the current df
 
 
 """Plotting"""
