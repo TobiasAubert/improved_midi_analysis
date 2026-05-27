@@ -187,13 +187,16 @@ class StateDataPlotter():
         df = df.copy()
 
         df_pre_post = df[df['Test'].str.contains('pre|post', case=False, na=False)].copy()
-        exploded = df_pre_post.explode('transitions')
+        exploded = df_pre_post.explode('transitions', ignore_index=True)
         exploded['freq'] = exploded['transitions'].apply(
             lambda item: item.get('frequency') if isinstance(item, dict) else np.nan
         )
         exploded['onset_to_onset'] = exploded['transitions'].apply(
             lambda item: item.get('onset_to_onset') if isinstance(item, dict) else np.nan
         )
+        exploded['freq'] = exploded['freq'].astype(str).str.strip().str.lower()
+        exploded = exploded[exploded['freq'].isin(FREQ_ORDER)].copy()
+        exploded = exploded.dropna(subset=['onset_to_onset'])
 
         # Metriken zum Plotten
         metrics = ['onset_to_onset']
@@ -223,6 +226,7 @@ class StateDataPlotter():
                 jitter=True,
                 ax=ax,
                 dodge=True,
+                hue_order=FREQ_ORDER,
                 legend=False
             )
             
@@ -247,13 +251,16 @@ class StateDataPlotter():
         df = df.copy()
 
         df_pre_post = df[df['Test'].str.contains('pre|post', case=False, na=False)].copy()
-        exploded = df_pre_post.explode('transitions')
+        exploded = df_pre_post.explode('transitions', ignore_index=True)
         exploded['freq'] = exploded['transitions'].apply(
             lambda item: item.get('frequency') if isinstance(item, dict) else np.nan
         )
         exploded['onset_to_onset'] = exploded['transitions'].apply(
             lambda item: item.get('onset_to_onset') if isinstance(item, dict) else np.nan
         )
+        exploded['freq'] = exploded['freq'].astype(str).str.strip().str.lower()
+        exploded = exploded[exploded['freq'].isin(FREQ_ORDER)].copy()
+        exploded = exploded.dropna(subset=['onset_to_onset'])
 
         # Metriken zum Plotten
         metrics = ['onset_to_onset']
@@ -283,6 +290,7 @@ class StateDataPlotter():
                 jitter=True,
                 ax=ax,
                 dodge=True,
+                hue_order=FREQ_ORDER,
                 legend=False
             )
             

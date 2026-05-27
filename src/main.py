@@ -31,12 +31,12 @@ df_states = state_processor.calculate_transitions(df_states) #is also added to t
 
 
 """Plotting"""
-# dp = FingerDataPlotter()
-# dp.boxplot(pd.DataFrame(processed_data_fingertest))
+dp = FingerDataPlotter()
+dp.boxplot(pd.DataFrame(processed_data_fingertest))
 
 pl = StateDataPlotter()
-# pl.learning_curve(df_states)
-# pl.pre_post_boxplot(df_states)
+pl.learning_curve(df_states)
+pl.pre_post_boxplot(df_states)
 pl.pre_post_violin(df_states)
 
 # df_states.to_csv('safe_check_order.csv', index=False, encoding='utf-8-sig')
