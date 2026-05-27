@@ -8,8 +8,8 @@ from data_plotter import FingerDataPlotter, StateDataPlotter
 
 """locate data folder with the midi recordings"""
 SCRIPT_DIR = Path(__file__).resolve().parent
-print(SCRIPT_DIR)
 root_folder = (SCRIPT_DIR / "../data/midi_recordings").resolve()
+plot_dir = (SCRIPT_DIR / "../plots").resolve()
 
 
 """load the data from the midi files"""
@@ -28,12 +28,10 @@ df_states = state_processor.calculate_transitions(df_states)
 
 
 """Plotting"""
-dp = FingerDataPlotter()
+dp = FingerDataPlotter(plot_dir)
 dp.boxplot(df_fingertest)
 
-pl = StateDataPlotter()
+pl = StateDataPlotter(plot_dir)
 pl.learning_curve(df_states)
 pl.pre_post_boxplot(df_states)
 pl.pre_post_violin(df_states)
-
-# df_states.to_csv('safe_check_order.csv', index=False, encoding='utf-8-sig')

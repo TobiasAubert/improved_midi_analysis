@@ -4,9 +4,18 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import re
+from pathlib import Path
+from typing import Any, Callable
 
 
 class FingerDataPlotter:
+    def __init__(self, output_dir: str | Path) -> None:
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _save_figure(self, filename: str) -> None:
+        plt.gcf().savefig(self.output_dir / filename, dpi=200, bbox_inches="tight")
+
     def boxplot(self, df: pd.DataFrame) -> None:
         df = df.copy()
 
@@ -50,10 +59,23 @@ class FingerDataPlotter:
             fig.delaxes(axes[j])
 
         plt.tight_layout(pad=2.0, w_pad=3.0, h_pad=2.5)
-        plt.show()
+        self._save_figure("finger_boxplot")
 
 
 class StateDataPlotter:
+    FREQ_PALETTE = {
+        "h": "#ff7f0e",  # frequent
+        "s": "#2ca02c",  # rare
+    }
+    FREQ_ORDER = ["h", "s"]
+
+    def __init__(self, output_dir: str | Path) -> None:
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    def _save_figure(self, filename: str) -> None:
+        plt.gcf().savefig(self.output_dir / filename, dpi=200, bbox_inches="tight")
+
     def learning_curve(self, df: pd.DataFrame) -> None:
         df = df.copy()
 
@@ -190,85 +212,21 @@ class StateDataPlotter:
         plt.grid(axis="y", alpha=0.2)
         plt.legend()
         plt.tight_layout()
-        plt.show()
+        self._save_figure("learning_curve.png")
 
     def pre_post_boxplot(self, df: pd.DataFrame) -> None:
-
-        # Farbzuordnung konsistent mit learning_curve_new.py
-        FREQ_PALETTE = {
-            "h": "#ff7f0e",  # frequent
-            "s": "#2ca02c",  # rare
-        }
-        FREQ_ORDER = ["h", "s"]
-
-        df = df.copy()
-
-        df_pre_post = df[
-            df["Test"].str.contains("pre|post", case=False, na=False)
-        ].copy()
-        exploded = df_pre_post.explode("transitions", ignore_index=True)
-        exploded["freq"] = exploded["transitions"].apply(
-            lambda item: item.get("frequency") if isinstance(item, dict) else np.nan
-        )
-        exploded["onset_to_onset"] = exploded["transitions"].apply(
-            lambda item: (
-                item.get("onset_to_onset") if isinstance(item, dict) else np.nan
-            )
-        )
-        exploded["freq"] = exploded["freq"].astype(str).str.strip().str.lower()
-        exploded = exploded[exploded["freq"].isin(FREQ_ORDER)].copy()
-        exploded = exploded.dropna(subset=["onset_to_onset"])
-
-        # Metriken zum Plotten
-        metrics = ["onset_to_onset"]
-        metric_labels = ["Transition time"]
-
-        fig, ax = plt.subplots(figsize=(6, 4))
-
-        for i, (metric, label) in enumerate(zip(metrics, metric_labels)):
-            sns.boxplot(
-                data=exploded,
-                x="Test",
-                y=metric,
-                hue="freq",
-                ax=ax,
-                palette=FREQ_PALETTE,
-                hue_order=FREQ_ORDER,
-            )
-            sns.stripplot(
-                data=exploded,
-                x="Test",
-                y=metric,
-                hue="freq",
-                color="black",
-                size=2,
-                alpha=0.4,
-                jitter=True,
-                ax=ax,
-                dodge=True,
-                hue_order=FREQ_ORDER,
-                legend=False,
-            )
-
-            ax.set_title(f"{label}", fontsize=14, fontweight="bold")
-            ax.set_xlabel("Test", fontsize=12)
-            ax.set_ylabel("Time (s)", fontsize=12)
-            ax.tick_params(axis="y", labelsize=10)
-            ax.legend(title="Frequency", loc="upper right")
-
-        plt.tight_layout()
-        plt.show()
+        self._plot_pre_post_distribution(df, sns.boxplot)
 
     def pre_post_violin(self, df: pd.DataFrame) -> None:
-        # Farbzuordnung konsistent mit learning_curve_new.py
-        FREQ_PALETTE = {
-            "h": "#ff7f0e",  # frequent
-            "s": "#2ca02c",  # rare
-        }
-        FREQ_ORDER = ["h", "s"]
+        self._plot_pre_post_distribution(
+            df,
+            sns.violinplot,
+            title_suffix=" (Violin Plot)",
+        )
 
+    def _prepare_pre_post_plot_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Return cleaned pre/post transition rows ready for plotting."""
         df = df.copy()
-
         df_pre_post = df[
             df["Test"].str.contains("pre|post", case=False, na=False)
         ].copy()
@@ -282,45 +240,57 @@ class StateDataPlotter:
             )
         )
         exploded["freq"] = exploded["freq"].astype(str).str.strip().str.lower()
-        exploded = exploded[exploded["freq"].isin(FREQ_ORDER)].copy()
-        exploded = exploded.dropna(subset=["onset_to_onset"])
+        exploded = exploded[exploded["freq"].isin(self.FREQ_ORDER)].copy()
+        return exploded.dropna(subset=["onset_to_onset"])
 
-        # Metriken zum Plotten
-        metrics = ["onset_to_onset"]
-        metric_labels = ["Transition time"]
+    def _plot_pre_post_distribution(
+        self,
+        df: pd.DataFrame,
+        plot_func: Callable[..., Any],
+        title_suffix: str = "",
+    ) -> None:
+        """Plot the pre/post transition distribution with a shared box/violin layout."""
+        exploded = self._prepare_pre_post_plot_data(df)
+        if exploded.empty:
+            print("No pre/post transitions available for plotting.")
+            return
 
         fig, ax = plt.subplots(figsize=(6, 4))
+        metric = "onset_to_onset"
+        label = "Transition time"
 
-        for i, (metric, label) in enumerate(zip(metrics, metric_labels)):
-            sns.violinplot(
-                data=exploded,
-                x="Test",
-                y=metric,
-                hue="freq",
-                ax=ax,
-                palette=FREQ_PALETTE,
-                hue_order=FREQ_ORDER,
-            )
-            sns.stripplot(
-                data=exploded,
-                x="Test",
-                y=metric,
-                hue="freq",
-                color="black",
-                size=2,
-                alpha=0.4,
-                jitter=True,
-                ax=ax,
-                dodge=True,
-                hue_order=FREQ_ORDER,
-                legend=False,
-            )
+        plot_func(
+            data=exploded,
+            x="Test",
+            y=metric,
+            hue="freq",
+            ax=ax,
+            palette=self.FREQ_PALETTE,
+            hue_order=self.FREQ_ORDER,
+        )
+        sns.stripplot(
+            data=exploded,
+            x="Test",
+            y=metric,
+            hue="freq",
+            color="black",
+            size=2,
+            alpha=0.4,
+            jitter=True,
+            ax=ax,
+            dodge=True,
+            hue_order=self.FREQ_ORDER,
+            legend=False,
+        )
 
-            ax.set_title(f"{label} (Violin Plot)", fontsize=14, fontweight="bold")
-            ax.set_xlabel("Test", fontsize=12)
-            ax.set_ylabel("Time (s)", fontsize=12)
-            ax.tick_params(axis="y", labelsize=10)
-            ax.legend(title="Frequency", loc="upper right")
+        ax.set_title(f"{label}{title_suffix}", fontsize=14, fontweight="bold")
+        ax.set_xlabel("Test", fontsize=12)
+        ax.set_ylabel("Time (s)", fontsize=12)
+        ax.tick_params(axis="y", labelsize=10)
+        ax.legend(title="Frequency", loc="upper right")
 
         plt.tight_layout()
-        plt.show()
+        filename = "pre_post_violin.png" if plot_func is sns.violinplot else "pre_post_boxplot.png"
+        self._save_figure(filename)
+
+    
