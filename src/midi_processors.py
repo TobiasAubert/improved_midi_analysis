@@ -198,7 +198,7 @@ class StatesProcessor:
 
             processed_data.append(info)
 
-        return processed_data
+        return pd.DataFrame(processed_data)
 
     # Control: Remove duplicate states, keeping only the last occurrence of consecutive identical states
     # to do imbed this into the analyse state

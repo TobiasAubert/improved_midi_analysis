@@ -18,20 +18,18 @@ data_fingertest, data_states = loader.load_midi(root_folder=root_folder)
 
 """process the data fingertest"""
 finger_processor = FingerdexProcessor()
-processed_data_fingertest = finger_processor.process_fingerdata(data_fingertest)
+df_fingertest = finger_processor.process_fingerdata(data_fingertest)
 
 
 """procces the data with states"""
 state_processor = StatesProcessor()
 df_states = state_processor.process_statedata(data_states)
-df_states = state_processor.calculate_transitions(
-    df_states
-)  # is also added to the current df
+df_states = state_processor.calculate_transitions(df_states)
 
 
 """Plotting"""
 dp = FingerDataPlotter()
-dp.boxplot(pd.DataFrame(processed_data_fingertest))
+dp.boxplot(df_fingertest)
 
 pl = StateDataPlotter()
 pl.learning_curve(df_states)
