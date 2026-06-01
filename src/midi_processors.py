@@ -115,15 +115,6 @@ class FingerdexProcessor:
             
 
         
-
-        
-            
-
-            
-
-
-
-
 class StatesProcessor:
     """Detect state sequences and derive transition metrics from state timings."""
 
@@ -153,7 +144,6 @@ class StatesProcessor:
             max_search_range = 20
 
             # Walk through the expected states in order.
-            mismatch_positions = []
             found_state_ranges = []
             for state_index, target_state_id in enumerate(target_sequence):
                 required_pitches = STATE_DEFS[target_state_id]
@@ -163,7 +153,7 @@ class StatesProcessor:
                     current_note_idx + max_search_range, len(entry.get("notes", []))
                 )
 
-                for i in range(current_note_idx, search_limit - 5):
+                for i in range(current_note_idx, search_limit):
                     # Use a fixed note window to detect the required pitch set.
                     window = entry.get("notes", [])[i : i + 10]
                     window_pitches = {n["pitch"] for n in window}
@@ -215,49 +205,12 @@ class StatesProcessor:
                         current_note_idx = last_note_in_state + 1
                         break
 
-            # Placeholder for mismatch reporting.
-            # It stays inactive right now because mismatch_positions is never populated,
-            # but the block shows how a future debug message would be built.
-            if mismatch_positions:
-                last_found_pitch = None
-                last_found_idx = None
-                mismatch_output_lines = []
-                for state_entry in reversed(detected_states):
-                    if state_entry.get("state") is not None and state_entry.get(
-                        "notes"
-                    ):
-                        last_note = state_entry["notes"][-1]
-                        # Keep the pitch and original note index of the last detected state.
-                        last_found_pitch = last_note.get("pitch")
-                        last_found_idx = entry.get("Notes", []).index(last_note)
-                        break
-
-                for target_state_id, state_index in mismatch_positions:
-                    if last_found_pitch is not None:
-                        line = (
-                            f"   ℹ️ State {target_state_id} an Position {state_index} nicht gefunden. "
-                            f"Letzter Pitch: {last_found_pitch} (played_notes Index {last_found_idx})"
-                        )
-                    else:
-                        line = (
-                            f"   ℹ️ State {target_state_id} an Position {state_index} nicht gefunden. "
-                            "Letzter Pitch: n/a"
-                        )
-                    print(line)
-                    mismatch_output_lines.append(line)
-
-                if found_state_ranges:
-                    header = "   🔎 Gefundene States (Index-Bereiche):"
-                    mismatch_output_lines.append(header)
-                    for entry in found_state_ranges:
-                        line = f"   - {entry}"
-                        mismatch_output_lines.append(line)
-
             # Assemble the row that will later become one DataFrame record.
             info = {
                 "participant_id": entry["participant_id"],
                 "test": entry["test"],  # example: Fingertest1, B2, Pretest
                 "detected_states": self.remove_duplicate_states(detected_states),
+                "notes": entry["notes"]
             }
 
             processed_data.append(info)
@@ -341,3 +294,103 @@ class StatesProcessor:
 
         out_df["transitions"] = transitions_per_row
         return out_df
+
+    def check_state_count(self, df: pd.DataFrame) -> None:
+        df = df.copy()
+        incorrect_rows = []
+        for _, entry in df.iterrows():
+            test = str(entry.get("test", "")).upper()
+            ds = entry.get("detected_states") or []
+
+            n = entry.get("notes") or []
+
+            count_detected_states = len(ds)
+            except_detected_states = 0
+            if test == "A":
+                except_detected_states = len(aufwärmen)
+            elif test == "POST" or test == "PRE":
+                except_detected_states = len(pre_post_test)
+            elif "B" in test:
+                except_detected_states = len(block)
+            
+            if except_detected_states - count_detected_states != 0:
+                row = entry.to_dict()
+                row["state_array"] = [
+                    state_entry.get("state")
+                    for state_entry in ds
+                    if isinstance(state_entry, dict)
+                ]
+                row["state_diff"] = except_detected_states - count_detected_states
+
+                inf = [
+                state_entry.get("state_info")
+                for state_entry in ds
+                if isinstance(state_entry, dict)
+                ]
+
+                if inf and len(inf[-1]) > 2:
+                    state_note_indices_last = inf[-1][2]
+                    biggest_index = max(state_note_indices_last)
+                else:
+                    state_note_indices_last = []
+                    biggest_index = -1
+                
+                row["notes_after_last_state"] = [
+                    note_entry.get("pitch")
+                    for note_index, note_entry in enumerate(n)
+                    if isinstance(note_entry, dict) and note_index > biggest_index
+                ]
+
+                row["notes"] = [
+                    note_entry.get("pitch")
+                    for note_entry in n
+                    if isinstance(note_entry, dict)
+                ]
+
+
+                incorrect_rows.append(row)
+
+        if not incorrect_rows:
+            print("all good")
+            return
+
+        filtered_df = pd.DataFrame(incorrect_rows)
+        filtered_df.to_csv("state_count.csv", index=False)
+        # filtered_df.to_csv("filtered.csv", index=False)
+        filtered_df[["participant_id", "test", "state_diff", "state_array"]].to_csv("filtered.csv", index=False)
+        filtered_df[["participant_id", "test", "state_diff", "notes"]].to_csv("notes.csv", index=False)
+        filtered_df[["participant_id", "test", "notes_after_last_state"]].to_csv("notes_after_last_state.csv", index=False)
+
+
+    def remove_incomplete_seq(self, df:pd.DataFrame) -> pd.DataFrame:
+            df = df.copy()
+            keep_rows = []
+
+            for idx, entry in df.iterrows():
+                test = str(entry.get("test", "")).upper()
+                n = entry.get("notes") or []
+
+                except_detected_states = 0
+                if test == "A":
+                    except_detected_states = len(aufwärmen)
+                elif test == "POST" or test == "PRE":
+                    except_detected_states = len(pre_post_test)
+                elif "B" in test:
+                    except_detected_states = len(block)
+
+                notes= [
+                        note_entry.get("pitch")
+                        for note_entry in n
+                        if isinstance(note_entry, dict)
+                    ]
+    
+                if((len(notes)/ 4) >= except_detected_states):
+                        keep_rows.append(idx)
+
+            return df.loc[keep_rows].copy()
+
+
+                
+                                
+                
+

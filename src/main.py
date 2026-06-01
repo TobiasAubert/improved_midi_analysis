@@ -20,13 +20,19 @@ data_fingertest, data_states = loader.load_midi(root_folder=root_folder)
 finger_processor = FingerdexProcessor()
 df_fingertest = finger_processor.process_fingerdata(data_fingertest)
 df_fingertest = finger_processor.fix_wrong_seq(df_fingertest)
-df_fingertest = df_fingertest[df_fingertest["keystrokes"] > 10]
+df_fingertest = df_fingertest[df_fingertest["keystrokes"] > 10] # some recordings have less than 10 key strokes and that is anusual
 
 
 """procces the data with states"""
 state_processor = StatesProcessor()
 df_states = state_processor.process_statedata(data_states)
 df_states = state_processor.calculate_transitions(df_states)
+
+#Remove invalid data
+df_states = df_states[df_states["notes"].apply(bool)] # removes entreis with no played key
+df_states = state_processor.remove_incomplete_seq(df_states) #removes all entreis in which not enough pitches are played to have played all states (the whole seq)
+
+state_processor.check_state_count(df_states)
 
 
 """Plotting"""
