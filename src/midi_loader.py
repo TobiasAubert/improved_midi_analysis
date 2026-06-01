@@ -90,9 +90,9 @@ class MIDILoader:
 
                             # prepare the data for DataFrame
                             info = {
-                                "Participant_ID": participant_id,
-                                "Test": test,
-                                "Notes": played_notes,
+                                "participant_id": participant_id,
+                                "test": test,
+                                "notes": played_notes,
                             }
                             data_fingertest.append(info)
 
@@ -101,9 +101,9 @@ class MIDILoader:
                             played_notes = self.extract_played_notes(midi=midi)
 
                             info = {
-                                "Participant_ID": participant_id,
-                                "Test": test,
-                                "Notes": played_notes,
+                                "participant_id": participant_id,
+                                "test": test,
+                                "notes": played_notes,
                             }
                             data_states.append(info)
 

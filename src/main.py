@@ -19,6 +19,8 @@ data_fingertest, data_states = loader.load_midi(root_folder=root_folder)
 """process the data fingertest"""
 finger_processor = FingerdexProcessor()
 df_fingertest = finger_processor.process_fingerdata(data_fingertest)
+df_fingertest = finger_processor.fix_wrong_seq(df_fingertest)
+df_fingertest = df_fingertest[df_fingertest["keystrokes"] > 10]
 
 
 """procces the data with states"""

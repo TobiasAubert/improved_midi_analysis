@@ -8,6 +8,8 @@ from constants import (
 import pandas as pd
 import numpy as np
 from typing import Any
+from numpy.lib.stride_tricks import sliding_window_view
+from collections import Counter
 
 
 class FingerdexProcessor:
@@ -17,9 +19,9 @@ class FingerdexProcessor:
 
         Args:
             data: iterable of entries where each entry is a dict with keys:
-                  - 'Participant_ID'
-                  - 'Test'
-                  - 'Notes': list of note dicts with
+                  - 'participant_id'
+                  - 'test'
+                  - 'notes': list of note dicts with
                         'pitch'
                         'name':
                         'start':
@@ -34,10 +36,10 @@ class FingerdexProcessor:
 
         for entry in data:
             # Read the fields needed for the summary row.
-            participant_id = entry.get("Participant_ID")
-            test = entry.get("Test")
+            participant_id = entry.get("participant_id")
+            test = entry.get("test")
 
-            notes = entry.get("Notes", []) or []
+            notes = entry.get("notes", []) or []
             # Notes are stored as dictionaries with at least a 'name' key.
             played_notes_name = [
                 n.get("name") for n in notes if isinstance(n, dict) and "name" in n
@@ -50,14 +52,76 @@ class FingerdexProcessor:
                     correct_sequences += 1
 
             info = {
-                "Participant_ID": participant_id,
-                "Test": test,
-                "Keystrokes": len(played_notes_name),
-                "Correct_Sequences": correct_sequences,
+                "participant_id": participant_id,
+                "test": test,
+                "keystrokes": len(played_notes_name),
+                "correct_sequences": correct_sequences,
+                "notes": notes
             }
             processed_data.append(info)
 
         return pd.DataFrame(processed_data)
+    
+    def fix_wrong_seq(self, df: pd.DataFrame, seq_len: int = 5) -> pd.DataFrame:
+        """Recompute the most common contiguous sequence of length ``seq_len``
+        for rows where the recorded `correct_sequences` is zero and write the
+        recalculated count back into the DataFrame.
+
+        The function returns a copy of the input DataFrame with updated
+        `correct_sequences` for affected rows and a new column
+        `most_common_sequence` (list) holding the most frequent tuple (if any).
+        """
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("fix_wrong_seq expects a pandas DataFrame")
+
+        out = df.copy()
+
+        notes_col = "notes"
+
+        # Ensure notes column contains lists
+        out[notes_col] = out[notes_col].apply(lambda x: x if isinstance(x, list) else [])
+
+        def most_common_k_tuple_from_notes(notes: list[dict], k: int):
+            names = [n.get("name") for n in notes if isinstance(n, dict) and "name" in n]
+            n = len(names)
+            if k <= 0 or k > n:
+                return None, 0
+            windows = (tuple(names[i : i + k]) for i in range(n - k + 1))
+            c = Counter(windows)
+            if not c:
+                return None, 0
+            seq, occurrences = c.most_common(1)[0]
+            return seq, occurrences
+
+        # Prepare a column for the detected most common sequence
+        out["most_common_sequence"] = None
+
+        mask = out["correct_sequences"] == 0        # nur die Zeilen, die neu berechnet werden sollen
+        
+        out["most_common_sequence"] = None
+        
+        for idx in out[mask].index:
+            seq, count = most_common_k_tuple_from_notes(out.at[idx, notes_col], seq_len)
+            if seq is None:
+                out.at[idx, "correct_sequences"] = 0
+                out.at[idx, "most_common_sequence"] = None
+            else:
+                out.at[idx, "correct_sequences"] = int(count)
+                out.at[idx, "most_common_sequence"] = list(seq)
+        return out
+            
+            
+
+            
+
+        
+
+        
+            
+
+            
+
+
 
 
 class StatesProcessor:
@@ -72,7 +136,7 @@ class StatesProcessor:
         processed_data = []
         for entry in data:
             # Choose the target sequence from the test label.
-            test_type = str(entry.get("Test")).lower()
+            test_type = str(entry.get("test")).lower()
             if "a" in test_type:
                 target_sequence = aufwärmen
             elif test_type.startswith("b") or "block" in test_type:
@@ -96,12 +160,12 @@ class StatesProcessor:
 
                 # Search ahead only from the current position.
                 search_limit = min(
-                    current_note_idx + max_search_range, len(entry.get("Notes", []))
+                    current_note_idx + max_search_range, len(entry.get("notes", []))
                 )
 
                 for i in range(current_note_idx, search_limit - 5):
                     # Use a fixed note window to detect the required pitch set.
-                    window = entry.get("Notes", [])[i : i + 10]
+                    window = entry.get("notes", [])[i : i + 10]
                     window_pitches = {n["pitch"] for n in window}
 
                     if required_pitches.issubset(window_pitches):
@@ -121,7 +185,7 @@ class StatesProcessor:
 
                         # Map the detected notes back to their positions in the original note list.
                         state_note_indices = [
-                            entry.get("Notes", []).index(n) for n in state_notes
+                            entry.get("notes", []).index(n) for n in state_notes
                         ]
                         state_pitches = [n["pitch"] for n in state_notes]
 
@@ -191,8 +255,8 @@ class StatesProcessor:
 
             # Assemble the row that will later become one DataFrame record.
             info = {
-                "Participant_ID": entry["Participant_ID"],
-                "Test": entry["Test"],  # example: Fingertest1, B2, Pretest
+                "participant_id": entry["participant_id"],
+                "test": entry["test"],  # example: Fingertest1, B2, Pretest
                 "detected_states": self.remove_duplicate_states(detected_states),
             }
 

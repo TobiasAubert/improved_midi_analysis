@@ -19,7 +19,7 @@ class FingerDataPlotter:
     def boxplot(self, df: pd.DataFrame) -> None:
         df = df.copy()
 
-        cols = [c for c in df.columns if "Correct_Sequences" in c or "Keystrokes" in c]
+        cols = [c for c in df.columns if "correct_sequences" in c or "keystrokes" in c]
         num_plots = len(cols)
 
         # Set grid size
@@ -35,9 +35,9 @@ class FingerDataPlotter:
         # Plot each boxplot
         for i, col in enumerate(cols):
             ax = axes[i]
-            sns.boxplot(x="Test", y=col, data=df, ax=ax)
+            sns.boxplot(x="test", y=col, data=df, ax=ax)
             sns.stripplot(
-                x="Test", y=col, data=df, color="black", size=6, jitter=True, ax=ax
+                x="test", y=col, data=df, color="black", size=6, jitter=True, ax=ax
             )
             ax.set_title(f"{col}", fontsize=16)
             # Show y-label only on first column of each row to avoid label overlap.
@@ -49,9 +49,9 @@ class FingerDataPlotter:
             ax.tick_params(axis="y", labelsize=12)
 
             # Set y-axis limits
-            if "Correct_Sequences" in col:
+            if "correct_sequences" in col:
                 ax.set_ylim(-2, 35)
-            elif "Keystrokes" in col:
+            elif "keystrokes" in col:
                 ax.set_ylim(-10, 180)
 
         # Remove empty subplots
@@ -103,7 +103,7 @@ class StateDataPlotter:
         )
 
         # Keep only tests relevant for learning curves (B1-B8).
-        exploded["block"] = exploded["Test"].astype(str).str.lower().str.strip()
+        exploded["block"] = exploded["test"].astype(str).str.lower().str.strip()
         exploded = exploded[exploded["block"].str.fullmatch(r"b[1-8]")]
         if exploded.empty:
             return exploded
@@ -116,7 +116,7 @@ class StateDataPlotter:
         )
 
         participant_means = exploded.groupby(
-            ["Participant_ID", "block"], as_index=False
+            ["participant_id", "block"], as_index=False
         ).agg(
             mean_onset_total=("onset_to_onset", "mean"),
             mean_onset_h=("onset_h", "mean"),
@@ -129,7 +129,7 @@ class StateDataPlotter:
             categories=block_order,
             ordered=True,
         )
-        return participant_means.sort_values(["Participant_ID", "block"])
+        return participant_means.sort_values(["participant_id", "block"])
 
     def _summarize_learning_curve(
         self, participant_means: pd.DataFrame
@@ -172,11 +172,11 @@ class StateDataPlotter:
         """Render and save the learning-curve plot."""
         fig, ax = plt.subplots(figsize=(12, 6))
         participant_colors = plt.cm.tab20(
-            np.linspace(0, 1, max(1, participant_means["Participant_ID"].nunique()))
+            np.linspace(0, 1, max(1, participant_means["participant_id"].nunique()))
         )
 
         for idx, (_, one_participant) in enumerate(
-            participant_means.groupby("Participant_ID")
+            participant_means.groupby("participant_id")
         ):
             ax.plot(
                 one_participant["block"].cat.codes,
@@ -231,7 +231,7 @@ class StateDataPlotter:
         """Return cleaned pre/post transition rows ready for plotting."""
         df = df.copy()
         df_pre_post = df[
-            df["Test"].str.contains("pre|post", case=False, na=False)
+            df["test"].str.contains("pre|post", case=False, na=False)
         ].copy()
         exploded = df_pre_post.explode("transitions", ignore_index=True)
         exploded["freq"] = exploded["transitions"].apply(
@@ -264,7 +264,7 @@ class StateDataPlotter:
 
         plot_func(
             data=exploded,
-            x="Test",
+            x="test",
             y=metric,
             hue="freq",
             ax=ax,
@@ -273,7 +273,7 @@ class StateDataPlotter:
         )
         sns.stripplot(
             data=exploded,
-            x="Test",
+            x="test",
             y=metric,
             hue="freq",
             color="black",
@@ -287,7 +287,7 @@ class StateDataPlotter:
         )
 
         ax.set_title(f"{label}{title_suffix}", fontsize=14, fontweight="bold")
-        ax.set_xlabel("Test", fontsize=12)
+        ax.set_xlabel("test", fontsize=12)
         ax.set_ylabel("Time (s)", fontsize=12)
         ax.tick_params(axis="y", labelsize=10)
         ax.legend(title="Frequency", loc="upper right")
