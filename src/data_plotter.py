@@ -213,6 +213,8 @@ class StateDataPlotter:
         ax.set_ylabel("Mean onset-to-onset (s)")
         ax.set_title("Learning Curve (B1-B8)")
         ax.grid(axis="y", alpha=0.2)
+        # Restrict visible y-axis range to focus the plot
+        ax.set_ylim(1.4, 3.0)
         ax.legend()
         plt.tight_layout()
         self._save_figure("learning_curve.png")
