@@ -315,11 +315,15 @@ class StatesProcessor:
             
             if except_detected_states - count_detected_states != 0:
                 row = entry.to_dict()
+
+                #list of all states in found in seq
                 row["state_array"] = [
                     state_entry.get("state")
                     for state_entry in ds
                     if isinstance(state_entry, dict)
                 ]
+
+                #difference between expected and found states
                 row["state_diff"] = except_detected_states - count_detected_states
 
                 inf = [
@@ -328,6 +332,7 @@ class StatesProcessor:
                 if isinstance(state_entry, dict)
                 ]
 
+                # notes after last state
                 if inf and len(inf[-1]) > 2:
                     state_note_indices_last = inf[-1][2]
                     biggest_index = max(state_note_indices_last)
@@ -341,12 +346,51 @@ class StatesProcessor:
                     if isinstance(note_entry, dict) and note_index > biggest_index
                 ]
 
-                row["notes"] = [
+                # Collect all notes for every detected state as (state, notes) tuples.
+                notes_all_state = []
+                for state_info in inf:
+                    if not isinstance(state_info, list) or len(state_info) < 3:
+                        continue
+
+                    state_note_indices = [
+                        note_index
+                        for note_index in state_info[2]
+                        if isinstance(note_index, int)
+                    ]
+                    if not state_note_indices:
+                        continue
+
+                    first_note = min(state_note_indices)
+                    last_note = max(state_note_indices)
+
+                    state_notes = [
+                        note_entry.get("pitch")
+                        for note_index, note_entry in enumerate(n)
+                        if (
+                            isinstance(note_entry, dict)
+                            and first_note <= note_index <= last_note
+                        )
+                    ]
+                    notes_all_state.append((state_info[0], state_notes))
+
+                row["notes_all_state"] = notes_all_state
+
+                #all notes in seq
+                notes = [
                     note_entry.get("pitch")
                     for note_entry in n
                     if isinstance(note_entry, dict)
                 ]
 
+                row["notes"] = notes
+
+                #check if nots went missing because of iteration search window
+                detected_state_notes = [
+                    pitch
+                    for _, state_note_list in notes_all_state
+                    for pitch in state_note_list
+                ]
+                row["missing_note"] = detected_state_notes != notes
 
                 incorrect_rows.append(row)
 
@@ -360,6 +404,7 @@ class StatesProcessor:
         filtered_df[["participant_id", "test", "state_diff", "state_array"]].to_csv("filtered.csv", index=False)
         filtered_df[["participant_id", "test", "state_diff", "notes"]].to_csv("notes.csv", index=False)
         filtered_df[["participant_id", "test", "notes_after_last_state"]].to_csv("notes_after_last_state.csv", index=False)
+        filtered_df[["participant_id", "test", "missing_note", "notes_all_state"]].to_csv("notes_all_state.csv", index=False)
 
 
     def remove_incomplete_seq(self, df:pd.DataFrame) -> pd.DataFrame:
