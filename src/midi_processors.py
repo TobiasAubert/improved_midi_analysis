@@ -407,9 +407,12 @@ class StatesProcessor:
         filtered_df[["participant_id", "test", "missing_note", "notes_all_state"]].to_csv("notes_all_state.csv", index=False)
 
 
-    def remove_incomplete_seq(self, df:pd.DataFrame) -> pd.DataFrame:
+    def remove_incomplete_seq(
+        self, df: pd.DataFrame, show_removed: bool = False
+    ) -> pd.DataFrame:
             df = df.copy()
             keep_rows = []
+            removed_rows = []
 
             for idx, entry in df.iterrows():
                 test = str(entry.get("test", "")).upper()
@@ -429,8 +432,22 @@ class StatesProcessor:
                         if isinstance(note_entry, dict)
                     ]
     
+                row_info = {
+                    "participant_id": entry.get("participant_id"),
+                    "test": entry.get("test"),
+                    "played_notes": len(notes),
+                    "expected_states": except_detected_states,
+                }
+
                 if((len(notes)/ 4) >= except_detected_states):
-                        keep_rows.append(idx)
+                    keep_rows.append(idx)
+                else:
+                    removed_rows.append(row_info)
+
+            if show_removed and removed_rows:
+                removed_df = pd.DataFrame(removed_rows)
+                print("Removed incomplete sequences:")
+                print(removed_df.to_string(index=False))
 
             return df.loc[keep_rows].copy()
 
